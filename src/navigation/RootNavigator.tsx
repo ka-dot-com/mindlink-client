@@ -4,12 +4,14 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { ScanScreen } from '../screens/ScanScreen';
 import { HabitsScreen } from '../screens/HabitsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { HistoryScreen } from '../screens/HistoryScreen';
 import { Ionicons } from '@expo/vector-icons';
 
 export type RootTabParamList = {
   Home: undefined;
   Scan: undefined;
   Habits: undefined;
+  History: undefined;
   Profile: undefined;
 };
 
@@ -37,6 +39,9 @@ export const RootNavigator = () => {
             case 'Habits':
               iconName = 'checkmark-done';
               break;
+            case 'History':
+              iconName = 'time';
+              break;
             case 'Profile':
               iconName = 'person';
               break;
@@ -48,6 +53,7 @@ export const RootNavigator = () => {
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
       <Tab.Screen name="Scan" component={ScanScreen} options={{ title: 'Scan' }} />
       <Tab.Screen name="Habits" component={HabitsScreen} options={{ title: 'Habits' }} />
+      <Tab.Screen name="History" component={HistoryScreen} options={{ title: 'History' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   );
