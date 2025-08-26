@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { saveJSON, loadJSON } from '../storage/async';
+import { loadToday, saveDaily } from '../storage/daily';
+import { DailyRecord } from '../types/dailyRecord';
 
 interface Habit {
   id: string;
@@ -14,41 +15,54 @@ const HABITS: Habit[] = [
   { id: 'post_meal_walk', name: 'Spacer po posiłku 10 min', category: 'movement' },
 ];
 
-const STORAGE_KEY = 'habits_completed_v1';
-
 export const HabitsScreen = () => {
-  const [completed, setCompleted] = useState<string[]>([]);
+  const [record, setRecord] = useState<DailyRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Load on mount
-  useEffect(() => {
-    (async () => {
-      const data = await loadJSON<string[]>(STORAGE_KEY, []);
-      setCompleted(data);
-      setLoading(false);
-    })();
+  const load = useCallback(async () => {
+    const rec = await loadToday();
+    setRecord(rec);
+    setLoading(false);
   }, []);
 
-  // Save on change
   useEffect(() => {
-    if (!loading) {
-      saveJSON(STORAGE_KEY, completed);
-    }
-  }, [completed, loading]);
+    load();
+  }, [load]);
 
   const toggleHabit = (id: string) => {
-    setCompleted((prev) =>
-      prev.includes(id) ? prev.filter((h) => h !== id) : [...prev, id]
-    );
+    if (!record) return;
+    let updatedHabits: string[];
+    if (record.habits.includes(id)) {
+      updatedHabits = record.habits.filter((h) => h !== id);
+    } else {
+      updatedHabits = [...record.habits, id];
+    }
+    const updated: DailyRecord = {
+      ...record,
+      habits: updatedHabits,
+      form: {
+        ...record.form,
+        habitsCompleted: String(updatedHabits.length),
+      },
+    };
+    setRecord(updated);
+    saveDaily(updated);
   };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    const data = await loadJSON<string[]>(STORAGE_KEY, []);
-    setCompleted(data);
+    await load();
     setRefreshing(false);
-  }, []);
+  }, [load]);
+
+  if (loading || !record) {
+    return (
+      <View style={styles.loader}>
+        <Text style={styles.loaderText}>Ładowanie nawyków...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -56,16 +70,13 @@ export const HabitsScreen = () => {
       <FlatList
         data={HABITS}
         keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         renderItem={({ item }) => {
-          const done = completed.includes(item.id);
+          const done = record.habits.includes(item.id);
           return (
             <TouchableOpacity
               style={[styles.habit, done && styles.habitDone]}
               onPress={() => toggleHabit(item.id)}
-              disabled={loading}
             >
               <Text style={[styles.habitText, done && styles.habitTextDone]}>
                 {done ? '✓ ' : ''}{item.name}
@@ -76,14 +87,16 @@ export const HabitsScreen = () => {
         }}
       />
       <Text style={styles.footer}>
-        Ukończono: {completed.length} / {HABITS.length}
-        {completed.length === 2 && ' – Świetnie! Jeszcze jedna aby zmaksymalizować jutrzejszy Score.'}
+        Ukończono: {record.habits.length} / {HABITS.length}
+        {record.habits.length === 2 && ' – Świetnie! Jeszcze jedna aby zmaksymalizować jutrzejszy Score.'}
       </Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loaderText: { fontSize: 16, color: '#334155' },
   container: { flex: 1, padding: 20, paddingTop: 12 },
   title: { fontSize: 20, fontWeight: '600', marginBottom: 12 },
   habit: {
