@@ -1,22 +1,27 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DailyRecord } from '../types/dailyRecord';
-import { makeDailyKey, todayISO } from '../lib/date';
+
+interface DailyRecord {
+  date: string;
+  habits?: string[];
+  score?: number | null;
+  updatedAt?: string;
+}
 
 interface HistoryItem {
   key: string;
   record: DailyRecord | null;
 }
 
-const LIMIT = 30; // ile maksymalnie pokazujemy
+const LIMIT = 30;
 
 async function listDailyKeys(): Promise<string[]> {
   const keys = await AsyncStorage.getAllKeys();
   return keys
     .filter(k => k.startsWith('daily_'))
     .sort()
-    .reverse(); // najnowsze pierwsze
+    .reverse();
 }
 
 async function loadRecord(key: string): Promise<DailyRecord | null> {
@@ -60,53 +65,44 @@ export const HistoryScreen = () => {
   if (loading && items.length === 0) {
     return (
       <View style={styles.loader}>
-        <Text style={styles.loaderText}>Ładowanie historii...</Text>
+        <Text style={styles.loaderText}>Loading history...</Text>
       </View>
     );
   }
-
-  const today = todayISO();
 
   return (
     <View style={styles.container}>
       <FlatList
         data={items}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        keyExtractor={(item) => item.key}
-        ListHeaderComponent={
-          <Text style={styles.title}>Historia dni (max {LIMIT})</Text>
-        }
+        keyExtractor={item => item.key}
+        ListHeaderComponent={<Text style={styles.title}>History (daily_*)</Text>}
         renderItem={({ item }) => {
           const rec = item.record;
-            const date = item.key.replace('daily_', '');
+          const date = item.key.replace('daily_', '');
           if (!rec) {
             return (
               <View style={styles.rowMissing}>
                 <Text style={styles.date}>{date}</Text>
-                <Text style={styles.missing}>Brak danych / uszkodzone</Text>
+                <Text style={styles.missing}>No data</Text>
               </View>
             );
           }
           return (
-            <TouchableOpacity
-              style={[styles.row, date === today && styles.rowToday]}
-              activeOpacity={0.6}
-            >
+            <View style={styles.row}>
               <View style={styles.colLeft}>
                 <Text style={styles.date}>{rec.date}</Text>
                 <Text style={styles.meta}>
-                  Habits: {rec.habits.length} | Score: {rec.score ?? '--'}
+                  Habits: {rec.habits ? rec.habits.length : 0} | Score: {rec.score ?? '--'}
                 </Text>
               </View>
               <View style={styles.colRight}>
-                <Text style={styles.score}>
-                  {rec.score ?? '--'}
-                </Text>
+                <Text style={styles.score}>{rec.score ?? '--'}</Text>
               </View>
-            </TouchableOpacity>
+            </View>
           );
         }}
-        ListEmptyComponent={<Text style={styles.empty}>Brak rekordów</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>Empty</Text>}
       />
     </View>
   );
@@ -123,17 +119,13 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 10,
     marginBottom: 10,
-    alignItems: 'center',
-  },
-  rowToday: {
-    borderWidth: 1,
-    borderColor: '#2563eb',
+    alignItems: 'center'
   },
   rowMissing: {
     backgroundColor: '#fee2e2',
     padding: 14,
     borderRadius: 10,
-    marginBottom: 10,
+    marginBottom: 10
   },
   date: { fontSize: 14, fontWeight: '600', color: '#0f172a' },
   meta: { fontSize: 12, color: '#475569', marginTop: 4 },
@@ -141,5 +133,5 @@ const styles = StyleSheet.create({
   colLeft: { flex: 1 },
   colRight: { paddingLeft: 12 },
   score: { fontSize: 20, fontWeight: '700', color: '#2563eb' },
-  empty: { textAlign: 'center', marginTop: 40, color: '#64748b' },
+  empty: { textAlign: 'center', marginTop: 40, color: '#64748b' }
 });
